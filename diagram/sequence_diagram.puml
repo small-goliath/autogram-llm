@@ -1,0 +1,58 @@
+@startuml Autogram_LLM_Sequence_Diagram
+
+!theme crt-amber
+
+title Autogram LLM 애플리케이션 시퀀스 다이어그램
+
+participant "프론트엔드" as Frontend
+participant "백엔드" as Backend
+participant "인스타그램" as Instagram
+participant "LangChain" as LangChain
+database "벡터 저장소" as VectorStore
+participant "Generative AI" as GenAI
+
+== 서버 기동 시 초기화 ==
+activate Backend
+Backend -> Instagram: 댓글 로드
+activate Instagram
+Instagram --> Backend: 반환
+deactivate Instagram
+
+Backend -> LangChain: 텍스트 청크로 분할
+activate LangChain
+LangChain --> Backend
+deactivate LangChain
+
+Backend -> GenAI: 텍스트 청크에 대한 임베딩 요청
+activate GenAI
+GenAI --> Backend
+deactivate GenAI
+
+Backend -> VectorStore: 청크와 임베딩으로 벡터 저장소 생성
+activate VectorStore
+VectorStore --> Backend
+deactivate VectorStore
+deactivate Backend
+
+== 런타임 Q&A 처리 ==
+Frontend -> Backend: 2. POST /api/comments/query
+activate Backend
+
+Backend -> VectorStore: 3. 댓글 스타일 요청
+activate VectorStore
+VectorStore --> Backend
+deactivate VectorStore
+
+Backend -> LangChain: 5. 내용 본문과 댓글 스타일을 사용하여 검색 체인 호출
+activate LangChain
+LangChain -> GenAI: 6. 컨텍스트와 질문을 LLM에 전송
+activate GenAI
+GenAI --> LangChain: 7. 생성된 댓글 반환
+deactivate GenAI
+LangChain --> Backend: 8. 최종 댓글 반환
+deactivate LangChain
+
+Backend --> Frontend: 9. JSON 형식으로 답변 응답
+deactivate Frontend
+
+@enduml
