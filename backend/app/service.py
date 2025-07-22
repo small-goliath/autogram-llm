@@ -10,18 +10,23 @@ from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_community.vectorstores import FAISS
 from langchain_core.documents import Document
 
-from backend.app.component.instagram_component import InstagramComponent
+from app.component.instagram_component import InstagramComponent
 from app.config import Settings
 from app.llm_factory import LLMFactory, get_llm_factory
 
 logger = logging.getLogger(__name__)
 
 PROMPT_TEMPLATE = """
-아래 컨텍스트를 기반으로 사용자의 텍스트로부터 적절하게 한국어로 실제로 이야기 하듯이 댓글을 30자 이내로 생성해주세요.
+당신은 소셜 미디어 댓글 작성 전문가입니다.
+아래는 특정 인스타그램 게시물에 달린 실제 댓글들입니다. 이 댓글들의 스타일, 어조, 단어 사용법을 참고해서 주어진 내용에 대한 새로운 댓글을 비슷한 말투의 한국어로 30자 이내로 작성해주세요.
 
-Context: {context}
+[참고할 댓글들]
+{context}
 
-text: {input}
+[댓글을 달 내용]
+{input}
+
+[새로운 댓글]
 """
 
 
