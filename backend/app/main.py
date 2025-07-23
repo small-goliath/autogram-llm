@@ -21,14 +21,6 @@ logger = logging.getLogger(__name__)
 async def lifespan(app: FastAPI):
     rag_service = create_rag_service(settings)
     rag_service.initialize(settings)
-
-    scheduler = BackgroundScheduler()
-    scheduler.add_job(
-        rag_service.initialize, "cron", hour="8,12,15,18", minute="0", args=[settings]
-    )
-    scheduler.start()
-    logger.info("백그라운드 재색인 스케줄러가 시작되었습니다. (매일 08, 12, 15, 18시 실행)")
-
     app.state.rag_service = rag_service
     yield
     logger.info("애플리케이션이 정상적으로 종료되었습니다.")

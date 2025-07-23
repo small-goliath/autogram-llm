@@ -10,7 +10,7 @@ from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_community.vectorstores import FAISS
 from langchain_core.documents import Document
 
-from app.component.instagram_component import InstagramComponent
+from backend.app.component.instagram_component import InstagramComponent
 from app.config import Settings
 from app.llm_factory import LLMFactory, get_llm_factory
 
