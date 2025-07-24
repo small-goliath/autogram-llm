@@ -11,7 +11,7 @@ __pycache__
 backend/.venv/
 backend/.ruff_cache/
 backend/.pytest_cache/
-backend/faiss
+backend/annoy
 frontend/node_modules/
 frontend/dist/
 docker/ollama_data/

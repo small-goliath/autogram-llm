@@ -78,4 +78,4 @@ def test_ask_question_with_unexpected_error(
     assert response.json() == {
         "detail": "답변 생성 중 오류 발생: An unexpected error occurred."
     }
-    mock_rag_service.ask.assert_called_once_with(question)
+    mock_rag_service.ask.assert_called_once_with(text)

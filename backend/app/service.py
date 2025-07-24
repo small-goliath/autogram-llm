@@ -3,12 +3,12 @@ import os
 from typing import List, Optional
 
 from instaloader import Profile, InstaloaderException
-from langchain.chains.combine_documents import create_stuff_documents_chain
-from langchain.chains.retrieval import create_retrieval_chain
 from langchain.prompts import ChatPromptTemplate
 from langchain.text_splitter import RecursiveCharacterTextSplitter
-from langchain_community.vectorstores import FAISS
 from langchain_core.documents import Document
+from langchain_community.vectorstores import Annoy
+from langchain.chains.combine_documents import create_stuff_documents_chain
+from langchain.chains.retrieval import create_retrieval_chain
 
 from app.component.instagram_component import InstagramComponent
 from app.config import Settings
@@ -37,7 +37,7 @@ class RAGService:
         instagram_component: Optional[InstagramComponent] = None,
     ):
         self.llm_factory = llm_factory
-        self.vector_store: Optional[FAISS] = None
+        self.vector_store: Optional[Annoy] = None
         self.retrieval_chain = None
         self.text_splitter = RecursiveCharacterTextSplitter(
             chunk_size=1000, chunk_overlap=200
@@ -61,10 +61,9 @@ class RAGService:
         """
         if os.path.exists(settings.VECTOR_STORE_PATH):
             logger.info("벡터 저장소를 로드합니다.")
-            self.vector_store = FAISS.load_local(
+            self.vector_store = Annoy.load_local(
                 settings.VECTOR_STORE_PATH,
-                self.llm_factory.embeddings,
-                allow_dangerous_deserialization=True,
+                self.llm_factory.embeddings
             )
             logger.info("벡터 저장소를 성공적으로 로드했습니다.")
         else:
@@ -78,9 +77,10 @@ class RAGService:
             logger.info(f"텍스트를 {len(texts)}개의 청크로 분할했습니다.")
 
             logger.info("벡터 저장소를 생성합니다.")
-            self.vector_store = FAISS.from_documents(
+            self.vector_store = Annoy.from_documents(
                 texts, self.llm_factory.embeddings
             )
+
             self.vector_store.save_local(settings.VECTOR_STORE_PATH)
             logger.info("벡터 저장소를 성공적으로 생성했습니다.")
 
@@ -103,7 +103,7 @@ class RAGService:
             
             logger.info(f"'{settings.TARGET_INSTAGRAM_USERNAME}'의 최근 게시물 15개에서 댓글을 수집합니다.")
             for i, post in enumerate(posts):
-                if i >= 15:
+                if i >= 1:
                     break
                 logger.info(f"게시물 {i+1}에서 댓글을 가져옵니다: {post.url}")
                 for comment in post.get_comments():
@@ -118,6 +118,8 @@ class RAGService:
         except Exception as e:
             logger.error(f"댓글을 로드하는 중 예상치 못한 오류 발생: {e}", exc_info=True)
             return []
+
+    
 
     def _setup_retrieval_chain(self):
         """

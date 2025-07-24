@@ -39,7 +39,7 @@ class Settings(BaseSettings):
     LLM_MODEL: str = "llama3.3"
     LLM_TEMPERATURE: float = 0.5
     LLM_PROVIDER: Literal["google", "ollama"] = "ollama"
-    VECTOR_STORE_PATH: str = "faiss/faiss_index"
+    VECTOR_STORE_PATH: str = "annoy/annoy_index"
     TARGET_INSTAGRAM_USERNAME: str
     MY_INSTAGRAM_USERNAME: str
 

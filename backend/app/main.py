@@ -2,7 +2,7 @@
 from contextlib import asynccontextmanager
 import logging
 
-from apscheduler.schedulers.background import BackgroundScheduler
+
 from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
