@@ -37,7 +37,7 @@ class Settings(BaseSettings):
     LOGGER_CONFIG_PATH: str
     LLM_HOST: str = "http://127.0.0.1:11434"
     LLM_MODEL: str = "llama3.3"
-    LLM_TEMPERATURE: float = 0.5
+    LLM_TEMPERATURE: float = 0.9
     LLM_PROVIDER: Literal["google", "ollama"] = "ollama"
     VECTOR_STORE_PATH: str = "annoy/annoy_index"
     TARGET_INSTAGRAM_USERNAME: str

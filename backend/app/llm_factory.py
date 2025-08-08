@@ -45,7 +45,6 @@ class LLMFactory:
             temperature=settings.LLM_TEMPERATURE,
         )
 
-@lru_cache
 def get_llm_factory() -> LLMFactory:
     settings = get_settings()
     return LLMFactory(settings)

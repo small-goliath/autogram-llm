@@ -8,7 +8,6 @@ from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_core.documents import Document
 from langchain_community.vectorstores import Annoy
 from langchain.chains.combine_documents import create_stuff_documents_chain
-from langchain.chains.retrieval import create_retrieval_chain
 
 from app.component.instagram_component import InstagramComponent
 from app.config import Settings
@@ -18,13 +17,23 @@ logger = logging.getLogger(__name__)
 
 PROMPT_TEMPLATE = """
 당신은 소셜 미디어 댓글 작성 전문가입니다.
-아래는 특정 인스타그램 게시물에 달린 실제 댓글들입니다. 이 댓글들의 스타일, 어조, 단어 사용법을 참고해서 주어진 내용에 대한 전혀 다른 새로운 댓글을 비슷한 말투의 한국어로 30자 이내로 새롭게 작성해주세요.
+아래는 특정 인스타그램 게시물에 달린 실제 댓글들입니다. 이 댓글들의 스타일, 어조, 단어 사용법을 깊이 분석하되, 결과물은 반드시 다음 지시사항을 따라야 합니다.
+
+[지시사항]
+- `이전에 생성한 댓글`들과는 완전히 전혀 다른 댓글을 작성하세요.
+- 주어진 '댓글을 달 내용'에 대해 전혀 다른 새로운 댓글을 사람이 직점 작성한 것처럼 생성하세요.
+- `참고할 댓글들`과 비슷한 어조, 말투, 단어의 한국어로 50자 이내로 작성해주세요.
+- 감탄사는 필수로 사용하지 않아도 됩니다.
+- 감탄사를 사용한다면 `와`와 같은 인위적인 감탄사보다는 `오!?`, `헐` `!?!?` 등과 같은 실제 사람이 사용하는 감탄사를 사용하세요.
 
 [참고할 댓글들]
 {context}
 
 [댓글을 달 내용]
 {input}
+
+[이전에 생성한 댓글]
+{pre_comments}
 
 [새로운 댓글]
 """
@@ -38,11 +47,11 @@ class RAGService:
     ):
         self.llm_factory = llm_factory
         self.vector_store: Optional[Annoy] = None
-        self.retrieval_chain = None
         self.text_splitter = RecursiveCharacterTextSplitter(
             chunk_size=1000, chunk_overlap=200
         )
         self.instagram = instagram_component
+        self.prompt = ChatPromptTemplate.from_template(PROMPT_TEMPLATE)
 
     def initialize(self, settings: Settings):
         """
@@ -50,7 +59,6 @@ class RAGService:
         """
         try:
             self._setup_vector_store(settings)
-            self._setup_retrieval_chain()
         except Exception as e:
             logger.error(f"LangChain RAG 파이프라인 초기화 실패: {e}", exc_info=True)
             raise
@@ -63,7 +71,8 @@ class RAGService:
             logger.info("벡터 저장소를 로드합니다.")
             self.vector_store = Annoy.load_local(
                 settings.VECTOR_STORE_PATH,
-                self.llm_factory.embeddings
+                self.llm_factory.embeddings,
+                allow_dangerous_deserialization=True
             )
             logger.info("벡터 저장소를 성공적으로 로드했습니다.")
         else:
@@ -119,36 +128,33 @@ class RAGService:
             logger.error(f"댓글을 로드하는 중 예상치 못한 오류 발생: {e}", exc_info=True)
             return []
 
-    
-
-    def _setup_retrieval_chain(self):
-        """
-        Retriever 및 체인 설정
-        """
-        if not self.vector_store:
-            logger.warning("벡터 저장소가 준비되지 않았습니다. Retriever 및 체인을 설정할 수 없습니다.")
-            return
-
-        logger.info("Retriever 및 체인을 설정합니다.")
-        retriever = self.vector_store.as_retriever()
-        prompt = ChatPromptTemplate.from_template(PROMPT_TEMPLATE)
-
-        document_chain = create_stuff_documents_chain(self.llm_factory.llm, prompt)
-        self.retrieval_chain = create_retrieval_chain(retriever, document_chain)
-        logger.info("Retriever 및 체인을 성공적으로 설정했습니다.")
-
-    def ask(self, text: str) -> str:
+    def ask(self, text: str, pre_comments: List[str]) -> str:
         """
         댓글 생성
         """
-        if not self.retrieval_chain:
+        if not self.vector_store:
             logger.error("RAG 파이프라인이 준비되지 않아서 질문에 답변할 수 없습니다.")
             raise RuntimeError("RAG 파이프라인이 초기화되지 않았습니다.")
 
         logger.info(f"질문 처리 시작: {text}")
-        response = self.retrieval_chain.invoke({"input": text})
+        
+        llm = get_llm_factory().llm
+        retriever = self.vector_store.as_retriever()
+        
+        document_chain = create_stuff_documents_chain(llm, self.prompt)
+        
+        # Retriever를 통해 관련 문서 가져오기
+        retrieved_docs = retriever.invoke(text)
+        
+        # 문서를 포함하여 체인 실행
+        response = document_chain.invoke({
+            "input": text,
+            "context": retrieved_docs,
+            "pre_comments": pre_comments
+        })
+        
         logger.info("답변을 성공적으로 생성했습니다.")
-        return response.get("answer", "답변을 생성하지 못했습니다.")
+        return response
 
 
 def create_rag_service(settings: Settings) -> RAGService:
