@@ -52,7 +52,28 @@ async def ask_question(
 
     logger.info(f"수신된 본문: {request.text}")
     try:
-        answer = rag_service.ask(request.text, request.amount)
+        answer = rag_service.comment_ask(request.text, request.amount)
+        logger.info(f"생성된 댓글: {answer}")
+        return JSONResponse(content={"answer": answer})
+    except RuntimeError as e:
+        logger.error(f"RAG 파이프라인이 준비되지 않았습니다: {e}")
+        raise HTTPException(status_code=503, detail=str(e))
+    except Exception as e:
+        logger.error(f"답변 생성 중 오류 발생: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"답변 생성 중 오류 발생: {e}")
+    
+@app.post("/api/re-comments/query")
+async def ask_question(
+    request: AskRequest,
+    rag_service: Annotated[RAGService, Depends(get_rag_service)],
+):
+    if not request.text:
+        logger.warning("API 호출 시 본문이 누락되었습니다.")
+        raise HTTPException(status_code=400, detail="본문이 없습니다.")
+
+    logger.info(f"수신된 본문: {request.text}")
+    try:
+        answer = rag_service.re_comment_ask(request.text, request.amount)
         logger.info(f"생성된 댓글: {answer}")
         return JSONResponse(content={"answer": answer})
     except RuntimeError as e:

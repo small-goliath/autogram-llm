@@ -19,12 +19,33 @@ from app.llm_factory import LLMFactory, get_llm_factory
 
 logger = logging.getLogger(__name__)
 
-PROMPT_TEMPLATE = """
+COMMENT_PROMPT_TEMPLATE = """
 당신은 소셜 미디어 댓글 작성 전문가입니다.
 아래는 특정 인스타그램 게시물에 달린 실제 댓글들입니다. 이 댓글들의 스타일, 어조, 단어 사용법을 깊이 분석하되, 결과물은 반드시 다음 `지시사항`을 따라야 합니다.
 
 [지시사항]
 - 주어진 '댓글을 달 내용'에 대해 전혀 다른 새로운 댓글을 사람이 직점 작성한 것처럼 생성하세요.
+- `참고할 댓글들`과 비슷한 어조, 말투, 단어의 한국어로 50자 이내로 완전히 전혀 다른 {amount}개의 댓글을 작성해주세요.
+- 감탄사는 필수로 사용하지 않아도 됩니다.
+- 만약 감탄사를 사용한다면 `와!`와 같은 인위적인 감탄사보다는 `오!?`, `헐` `!?!?` 등과 같은 실제 사람이 사용하는 감탄사를 사용하세요.
+- 다음 JSON 스키마에 따라 결과물을 생성해주세요.
+{format_instructions}
+
+[참고할 댓글들]
+{context}
+
+[댓글을 달 내용]
+{input}
+
+[새로운 댓글 (JSON)]
+"""
+
+RE_COMMENT_PROMPT_TEMPLATE = """
+당신은 소셜 미디어 댓글 작성 전문가입니다.
+아래는 특정 인스타그램 게시물에 달린 실제 댓글들입니다. 이 댓글들의 스타일, 어조, 단어 사용법을 깊이 분석하되, 결과물은 반드시 다음 `지시사항`을 따라야 합니다.
+
+[지시사항]
+- 주어진 '댓글을 달 내용'에 대해서 대댓글을 사람이 직점 작성한 것처럼 생성하세요.
 - `참고할 댓글들`과 비슷한 어조, 말투, 단어의 한국어로 50자 이내로 완전히 전혀 다른 {amount}개의 댓글을 작성해주세요.
 - 감탄사는 필수로 사용하지 않아도 됩니다.
 - 만약 감탄사를 사용한다면 `와!`와 같은 인위적인 감탄사보다는 `오!?`, `헐` `!?!?` 등과 같은 실제 사람이 사용하는 감탄사를 사용하세요.
@@ -53,14 +74,21 @@ class RAGService:
     ):
         self.llm_factory = llm_factory
         self.vector_store: Optional[Annoy] = None
-        self.retrieval_chain = None
+        self.comment_retrieval_chain = None
+        self.re_comment_retrieval_chain = None
         self.text_splitter = RecursiveCharacterTextSplitter(
             chunk_size=1000, chunk_overlap=200
         )
         self.instagram = instagram_component
         self.parser = JsonOutputParser(pydantic_object=CommentList)
-        self.prompt = ChatPromptTemplate.from_template(
-            PROMPT_TEMPLATE,
+        self.comment_prompt = ChatPromptTemplate.from_template(
+            COMMENT_PROMPT_TEMPLATE,
+            partial_variables={
+                "format_instructions": self.parser.get_format_instructions()
+            },
+        )
+        self.re_comment_prompt = ChatPromptTemplate.from_template(
+            RE_COMMENT_PROMPT_TEMPLATE,
             partial_variables={
                 "format_instructions": self.parser.get_format_instructions()
             },
@@ -153,26 +181,44 @@ class RAGService:
         logger.info("Retriever 및 체인을 설정합니다.")
         retriever = self.vector_store.as_retriever()
 
-        document_chain = create_stuff_documents_chain(self.llm_factory.llm, self.prompt)
-        self.retrieval_chain = create_retrieval_chain(retriever, document_chain)
+        document_chain = create_stuff_documents_chain(self.llm_factory.llm, self.comment_prompt)
+        self.comment_retrieval_chain = create_retrieval_chain(retriever, document_chain)
+        document_chain = create_stuff_documents_chain(self.llm_factory.llm, self.re_comment_prompt)
+        self.re_comment_retrieval_chain = create_retrieval_chain(retriever, document_chain)
         logger.info("Retriever 및 체인을 성공적으로 설정했습니다.")
 
-    def ask(self, text: str, amount: int) -> List[str]:
+    def comment_ask(self, text: str, amount: int) -> List[str]:
         """
         댓글 생성
         """
-        if not self.retrieval_chain:
+        if not self.comment_retrieval_chain:
             logger.error("RAG 파이프라인이 준비되지 않아서 질문에 답변할 수 없습니다.")
             raise RuntimeError("RAG 파이프라인이 초기화되지 않았습니다.")
 
         logger.info(f"질문 처리 시작: {text}")
-        # 'answer' 키를 추출하여 파서에 전달
-        chain_with_parser = self.retrieval_chain | itemgetter("answer") | self.parser
+        chain_with_parser = self.comment_retrieval_chain | itemgetter("answer") | self.parser
         response = chain_with_parser.invoke(
             {"input": text, "amount": amount}
         )
 
-        logger.info("답변을 성공적으로 생성했습니다.")
+        logger.info("댓글을 성공적으로 생성했습니다.")
+        return response["comments"]
+    
+    def re_comment_ask(self, text: str, amount: int) -> List[str]:
+        """
+        대댓글 생성
+        """
+        if not self.re_comment_retrieval_chain:
+            logger.error("RAG 파이프라인이 준비되지 않아서 질문에 답변할 수 없습니다.")
+            raise RuntimeError("RAG 파이프라인이 초기화되지 않았습니다.")
+
+        logger.info(f"질문 처리 시작: {text}")
+        chain_with_parser = self.re_comment_retrieval_chain | itemgetter("answer") | self.parser
+        response = chain_with_parser.invoke(
+            {"input": text, "amount": amount}
+        )
+
+        logger.info("대댓글을 성공적으로 생성했습니다.")
         return response["comments"]
 
 
