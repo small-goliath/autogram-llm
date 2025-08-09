@@ -52,7 +52,7 @@ async def ask_question(
 
     logger.info(f"수신된 본문: {request.text}")
     try:
-        answer = rag_service.ask(request.text, request.pre_comments)
+        answer = rag_service.ask(request.text, request.amount)
         logger.info(f"생성된 댓글: {answer}")
         return JSONResponse(content={"answer": answer})
     except RuntimeError as e:
