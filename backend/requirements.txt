@@ -16,3 +16,5 @@ apscheduler
 pytest
 ruff
 pytest-env
+instaloader
+langchain-experimental

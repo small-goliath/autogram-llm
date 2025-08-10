@@ -4,14 +4,14 @@ from typing import List, Optional
 
 from instaloader import Profile, InstaloaderException
 from langchain.prompts import ChatPromptTemplate
-from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain_experimental.text_splitter import SemanticChunker
 from langchain_core.documents import Document
 from langchain_community.vectorstores import Annoy
 from langchain.chains.combine_documents import create_stuff_documents_chain
 from langchain.chains.retrieval import create_retrieval_chain
 from operator import itemgetter
 from langchain_core.output_parsers import JsonOutputParser
-from langchain_core.pydantic_v1 import BaseModel, Field
+from pydantic.v1 import BaseModel, Field
 
 from app.component.instagram_component import InstagramComponent
 from app.config import Settings
@@ -73,8 +73,8 @@ class RAGService:
         self.vector_store: Optional[Annoy] = None
         self.comment_retrieval_chain = None
         self.re_comment_retrieval_chain = None
-        self.text_splitter = RecursiveCharacterTextSplitter(
-            chunk_size=1000, chunk_overlap=200
+        self.text_splitter = SemanticChunker(
+            self.llm_factory.embeddings, breakpoint_threshold_type="percentile"
         )
         self.instagram = instagram_component
         self.parser = JsonOutputParser(pydantic_object=CommentList)
@@ -151,7 +151,7 @@ class RAGService:
 
             logger.info(f"'{settings.TARGET_INSTAGRAM_USERNAME}'의 최근 게시물 15개에서 댓글을 수집합니다.")
             for i, post in enumerate(posts):
-                if i >= 15:
+                if i >= 1:
                     break
                 logger.info(f"게시물 {i+1}에서 댓글을 가져옵니다: {post.url}")
                 for comment in post.get_comments():
