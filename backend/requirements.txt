@@ -18,3 +18,4 @@ ruff
 pytest-env
 instaloader
 langchain-experimental
+langchain-openai

@@ -5,6 +5,7 @@ from langchain_ollama import OllamaEmbeddings
 from langchain_google_genai import GoogleGenerativeAIEmbeddings
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_community.chat_models import ChatOllama
+from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 from langchain.embeddings.base import Embeddings
 from langchain_core.language_models.chat_models import BaseChatModel
 from .config import get_settings, Settings
@@ -22,6 +23,8 @@ class LLMFactory:
             self._initialize_google(settings)
         elif provider == "ollama":
             self._initialize_ollama(settings)
+        elif provider == "openai":
+            self._initialize_openai(settings)
         else:
             raise ValueError(f"알 수 없는 LLM Provider: {settings.LLM_PROVIDER}")
 
@@ -42,6 +45,16 @@ class LLMFactory:
         )
         self.llm: BaseChatModel = ChatOllama(
             model=settings.LLM_MODEL,
+            temperature=settings.LLM_TEMPERATURE,
+        )
+
+    def _initialize_openai(self, settings: Settings):
+        self.embeddings: Embeddings = OpenAIEmbeddings(
+            model="text-embedding-3-small",
+            openai_api_key=settings.OPENAI_API_KEY
+        )
+        self.llm: BaseChatModel = ChatOpenAI(
+            model_name=settings.LLM_MODEL,
             temperature=settings.LLM_TEMPERATURE,
         )
 

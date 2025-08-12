@@ -36,12 +36,13 @@ class Settings(BaseSettings):
     PROJECT_NAME: str = "Autogram"
     LOGGER_CONFIG_PATH: str
     LLM_HOST: str = "http://127.0.0.1:11434"
-    LLM_MODEL: str = "llama3.3"
+    LLM_MODEL: str = "gpt-4o"
     LLM_TEMPERATURE: float = 0.9
-    LLM_PROVIDER: Literal["google", "ollama"] = "ollama"
+    LLM_PROVIDER: Literal["google", "ollama", "openai"] = "openai"
     VECTOR_STORE_PATH: str = "annoy/annoy_index"
     TARGET_INSTAGRAM_USERNAME: str
     MY_INSTAGRAM_USERNAME: str
+    OPENAI_API_KEY: str
 
 @lru_cache
 def get_settings() -> Settings:
