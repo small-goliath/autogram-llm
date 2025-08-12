@@ -1,16 +1,13 @@
 fastapi
 uvicorn
 langchain
-ollama
 google-api-python-client
 google-auth-httplib2
 google-auth-oauthlib
 annoy
 langchain-community
-langchain-ollama
 pydantic
 PyPDF2
-langchain_google_genai
 langchain-google-community
 apscheduler
 pytest
