@@ -151,7 +151,7 @@ class RAGService:
 
             logger.info(f"'{settings.TARGET_INSTAGRAM_USERNAME}'의 최근 게시물 15개에서 댓글을 수집합니다.")
             for i, post in enumerate(posts):
-                if i >= 1:
+                if i >= 15:
                     break
                 logger.info(f"게시물 {i+1}에서 댓글을 가져옵니다: {post.url}")
                 for comment in post.get_comments():
